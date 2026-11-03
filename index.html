@@ -10,89 +10,92 @@ body{background:#12140f}
 .card{background:#1d2018}
 .navbar{background:#232719!important}
 #flashAlert{display:none}
+pre{font-size:12px;background:#0d0f0a;color:#cfe3ff;border:1px solid #2c322a}
 </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg mb-3">
 <div class="container-fluid">
-<a class="navbar-brand" href="#/">⚙️ Grand SAMP shop</a>
+<a class="navbar-brand" href="index.html">⚙️ Grand SAMP shop</a>
 <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#n"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="n">
 <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="#/">📊 Главная</a></li>
-<li class="nav-item"><a class="nav-link" href="#/users">👥 Пользователи</a></li>
-<li class="nav-item"><a class="nav-link" href="#/orders">🧾 Заказы</a></li>
-<li class="nav-item"><a class="nav-link" href="#/categories">📖 Категории</a></li>
-<li class="nav-item"><a class="nav-link" href="#/products">🛒 Товары</a></li>
-<li class="nav-item"><a class="nav-link" href="#/coupons">🎟 Купоны</a></li>
-<li class="nav-item"><a class="nav-link" href="#/topups">💰 Пополнения</a></li>
-<li class="nav-item"><a class="nav-link" href="#/broadcast">📢 Рассылка</a></li>
-<li class="nav-item"><a class="nav-link" href="#/settings">⚙️ Настройки</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html">📊 Главная</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#users">👥 Пользователи</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#orders">🧾 Заказы</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#categories">📖 Категории</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#products">🛒 Товары</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#coupons">🎟 Купоны</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#topups">💰 Пополнения</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#broadcast">📢 Рассылка</a></li>
+<li class="nav-item"><a class="nav-link" href="index.html#settings">⚙️ Настройки</a></li>
 </ul>
-<a class="btn btn-sm btn-outline-secondary" href="#/login">Выйти</a>
+<a class="btn btn-sm btn-outline-secondary" href="index.html#login">Выйти</a>
 </div>
 </div>
 </nav>
 <div class="container-fluid pb-5">
-<div id="flashAlert" class="alert alert-info py-2"></div>
-<div id="content"></div>
+<div id="flashAlert" class="alert alert-info py-2 mt-3"></div>
+<div class="card">
+<div class="card-body" id="contentBody">
+<div class="text-center text-secondary">Загрузка данных…</div>
+</div>
+</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-/* ---------- простой роутер и выполнение форм через fetch ---------- */
-const API_BASE = "/api";
+const API_BASE = "./api";
+
+let state = null;
 
 function flash(msg, kind){
   const el = document.getElementById("flashAlert");
   el.textContent = msg;
-  el.className = "alert alert-" + (kind === "danger" ? "danger" : "info") + " py-2";
+  el.className = "alert alert-" + (kind === "danger" ? "danger" : "info") + " py-2 mt-3";
   el.style.display = "block";
   setTimeout(()=>{ el.style.display = "none"; }, 4000);
 }
 
-function postForm(form, redirect){
-  const data = new FormData(form);
-  const csrf = form.querySelector('input[name="_csrf"]');
-  if(csrf) data.set("_csrf", csrf.value);
-  fetch(form.action, { method:"POST", body:data })
-    .then(r=>r.json())
-    .then(j=>{
-      if(j && j.error){ flash(j.error, "danger"); }
-      else if(j && j.flash){ flash(j.flash, "info"); }
-      else { flash("Сохранено"); }
-      if(redirect){ setTimeout(()=>location.href=redirect, 600); }
-      else { location.reload(); }
-    })
-    .catch(()=>flash("Ошибка сети", "danger"));
-  return false;
-}
-
-function csrfToken(){
+function get_csrf(){
   const m = document.cookie.match(/_csrf=([^;]+)/);
-  return m ? m[1] : "";
+  return m ? decodeURIComponent(m[1]) : "";
 }
 
-/* ---------- шаблоны страниц ---------- */
-function tmplLogin(csrf){
-  return `
+function set_csrf(v){
+  document.cookie = "_csrf=" + encodeURIComponent(v) + "; path=/";
+}
+
+/* ---------- простой редирект ---------- */
+function redirectTo(hash){
+  if(hash.startsWith("#")) location.hash = hash;
+  else location.hash = "#" + hash;
+}
+
+/* ---------- внутренняя навигация ---------- */
+function showSection(name, payload){
+  const body = document.getElementById("contentBody");
+  if(name === "login"){
+    body.innerHTML = `
 <form method="post" action="${API_BASE}/login" class="card p-4" style="width:320px;background:#1d2018;margin:0 auto">
 <h4 class="mb-3 text-center">🔐 Админ-панель</h4>
-<input type="hidden" name="_csrf" value="${csrf}">
+<input type="hidden" name="_csrf" value="${state.csrf}">
 <input type="password" name="password" class="form-control mb-3" placeholder="Пароль" autofocus required>
 <button class="btn btn-success w-100">Войти</button>
 </form>`;
-}
-function tmplIndex(s, recent, STATUS){
-  const recentRows = recent.map(o=>`
+    return;
+  }
+  if(name === "index"){
+    const s = state.s;
+    const recent = (state.recent || []).map(o => `
 <tr>
 <td>${o.id}</td>
-<td><a href="#/users/${o.user_id}">${o.name || o.user_id}</a></td>
+<td><a href="index.html#user=${o.user_id}">${o.name || o.user_id}</a></td>
 <td>${o.product}</td>
 <td>${o.price}⭐</td>
 <td>${o.date}</td>
 <td>${STATUS[o.status] || o.status}</td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>📊 Статистика</h4>
 <div class="row g-3 mb-4">
 <div class="col-6 col-md-4 col-xl-2"><div class="card p-3"><div class="text-secondary small">Пользователей</div><div class="fs-3">${s.users}</div></div></div>
@@ -103,50 +106,42 @@ function tmplIndex(s, recent, STATUS){
 <div class="col-6 col-md-4 col-xl-2"><div class="card p-3"><div class="text-secondary small">Балансы юзеров, ⭐</div><div class="fs-3">${s.balances}</div></div></div>
 </div>
 <h5>Последние заказы</h5>
-<div class="table-responsive">
-<table class="table table-sm align-middle">
+<div class="table-responsive"><table class="table table-sm align-middle">
 <tr><th>#</th><th>Клиент</th><th>Товар</th><th>Цена</th><th>Дата</th><th>Статус</th></tr>
-${recentRows}
-</table>
-</div>`;
-}
-function tmplUsers(rows, term){
-  const rowsHtml = rows.map(u=>`
+${recent}
+</table></div>
+<div class="mt-3"><button class="btn btn-sm btn-outline-secondary" onclick="editStateRaw()">Показать/raw данные</button></div>`;
+    return;
+  }
+  if(name === "users"){
+    const term = state.userQuery || "";
+    const rows = (state.users || []).map(u => `
 <tr>
 <td>${u.id}</td>
 <td>${u.name}</td>
 <td>${u.balance}⭐</td>
 <td>${u.created}</td>
-<td><a class="btn btn-sm btn-outline-success" href="#/users/${u.id}">Открыть</a></td>
+<td><a class="btn btn-sm btn-outline-success" href="index.html#user=${u.id}">Открыть</a></td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>👥 Пользователи</h4>
-<form class="row g-2 mb-3" onsubmit="return false">
+<form onsubmit="return false" class="row g-2 mb-3">
 <div class="col-auto"><input id="userQ" value="${term}" class="form-control" placeholder="ID или имя"></div>
-<div class="col-auto"><button class="btn btn-secondary" onclick="loadUsers()">Найти</button></div>
+<div class="col-auto"><button class="btn btn-secondary" onclick="filterUsers()">Найти</button></div>
 </form>
-<div class="table-responsive">
-<table class="table table-sm align-middle">
+<div class="table-responsive"><table class="table table-sm align-middle">
 <tr><th>ID</th><th>Имя</th><th>Баланс</th><th>Регистрация</th><th></th></tr>
-${rowsHtml}
-</table>
-</div>`;
-}
-function tmplUser(u, orders, topups, refs, csrf){
-  const ordersHtml = orders.map(o=>`
-<tr>
-<td>#${o.id}</td>
-<td>${o.product}</td>
-<td>${o.price}⭐</td>
-<td>${o.date}</td>
-<td>${STATUS[o.status] || o.status}</td>
-</tr>`).join("");
-  const topupsHtml = topups.map(t=>`
-<tr>
-<td>+${t.amount}⭐</td>
-<td>${t.date}</td>
-</tr>`).join("");
-  return `
+${rows || "<tr><td class='text-secondary'>Нет пользователей</td></tr>"}
+</table></div>`;
+    return;
+  }
+  if(name === "user" && payload){
+    const u = payload;
+    const orders = (state.orders || []).filter(o => o.user_id === u.id).slice(0, 50);
+    const topups = (state.topups || []).filter(t => t.user_id === u.id).slice(0, 50);
+    const csrf = get_csrf();
+    const refs = (state.users||[]).filter(x=>x.referrer===u.id).length;
+    body.innerHTML = `
 <h4>👤 ${u.name} <small class="text-secondary">ID ${u.id}</small></h4>
 <p>Баланс: <b>${u.balance}⭐</b> · Регистрация: ${u.created} · Рефералов: ${refs}</p>
 <div class="row g-3">
@@ -203,48 +198,66 @@ function tmplUser(u, orders, topups, refs, csrf){
 </div>
 <h5 class="mt-4">Заказы</h5>
 <table class="table table-sm">
-${ordersHtml}
+${orders.length ? orders.map(o=>`
+<tr>
+<td>#${o.id}</td>
+<td>${o.product}</td>
+<td>${o.price}⭐</td>
+<td>${o.date}</td>
+<td>${STATUS[o.status] || o.status}</td>
+</tr>`).join("") : "<tr><td class='text-secondary'>Нет заказов</td></tr>"}
 </table>
 <h5>Пополнения</h5>
 <table class="table table-sm">
-${topupsHtml}
+${topups.length ? topups.map(t=>`
+<tr>
+<td>+${t.amount}⭐</td>
+<td>${t.date}</td>
+</tr>`).join("") : "<tr><td class='text-secondary'>Нет пополнений</td></tr>"}
 </table>`;
-}
-function tmplOrders(rows, st, STATUS, csrf){
-  const statusBtns = Object.entries(STATUS).map(([k,v])=>`
-<a class="btn btn-sm btn-outline-secondary ${st===k?'active':''}" href="#/orders${k?'/?status='+k:''}">${v}</a>`).join("");
-  const rowsHtml = rows.map(o=>`
+    return;
+  }
+  if(name === "orders"){
+    const st = state.orderStatus || "";
+    const csrf = get_csrf();
+    const rowsHtml = (state.orders || []).map(o => `
 <tr>
 <td>${o.id}</td>
-<td><a href="#/users/${o.user_id}">${o.name || o.user_id}</a></td>
+<td><a href="index.html#user=${o.user_id}">${o.name || o.user_id}</a></td>
 <td>${o.product}</td>
 <td>${o.price}⭐</td>
 <td>${o.date}</td>
 <td>${STATUS[o.status] || o.status}</td>
 <td class="text-nowrap">
-${o.status==='new' ? `<form onsubmit="return postForm(this)"><input type="hidden" name="_csrf" value="${csrf}"><button class="btn btn-sm btn-success">Выдать</button></form>` : ''}
-${o.status!=='refunded' ? `<form onsubmit="return postForm(this)"><input type="hidden" name="_csrf" value="${csrf}"><button class="btn btn-sm btn-warning" onclick="return confirm('Вернуть деньги?')">Возврат</button></form>` : ''}
+${o.status==='new'
+  ? `<form onsubmit="return postForm(this)"><input type="hidden" name="_csrf" value="${csrf}"><button class="btn btn-sm btn-success">Выдать</button></form>`
+  : ""}
+${o.status!=='refunded'
+  ? `<form onsubmit="return postForm(this)"><input type="hidden" name="_csrf" value="${csrf}"><button class="btn btn-sm btn-warning" onclick="return confirm('Вернуть деньги?')">Возврат</button></form>`
+  : ""}
 <form onsubmit="return postForm(this)">
 <input type="hidden" name="_csrf" value="${csrf}">
 <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить запись?')">✕</button>
 </form>
 </td>
 </tr>`).join("");
-  return `
+    const statusBtns = Object.entries(STATUS).map(([k,v])=>`
+<a class="btn btn-sm btn-outline-secondary ${st===k?'active':''}" href="index.html#orders${st?'/'+k:''}">${v}</a>`).join("");
+    body.innerHTML = `
 <h4>🧾 Заказы</h4>
 <div class="mb-3 btn-group">
-<a class="btn btn-sm btn-outline-secondary ${!st?'active':''}" href="#/orders">Все</a>
+<a class="btn btn-sm btn-outline-secondary ${!st?'active':''}" href="index.html#orders">Все</a>
 ${statusBtns}
 </div>
-<div class="table-responsive">
-<table class="table table-sm align-middle">
+<div class="table-responsive"><table class="table table-sm align-middle">
 <tr><th>#</th><th>Клиент</th><th>Товар</th><th>Цена</th><th>Дата</th><th>Статус</th><th>Действия</th></tr>
 ${rowsHtml}
-</table>
-</div>`;
-}
-function tmplCategories(rows, csrf){
-  const rowsHtml = rows.map(c=>`
+</table></div>`;
+    return;
+  }
+  if(name === "categories"){
+    const csrf = get_csrf();
+    const rowsHtml = (state.categories || []).map(c => `
 <tr>
 <td>${c.id}</td>
 <td>
@@ -262,7 +275,7 @@ function tmplCategories(rows, csrf){
 </form>
 </td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>📖 Категории</h4>
 <form onsubmit="return postForm(this)" class="row g-2 mb-3">
 <input type="hidden" name="_csrf" value="${csrf}">
@@ -271,19 +284,17 @@ function tmplCategories(rows, csrf){
 </form>
 <table class="table align-middle">
 <tr><th>ID</th><th>Название</th><th>Товаров</th><th></th></tr>
-${rowsHtml}
+${rowsHtml || "<tr><td class='text-secondary'>Нет категорий</td></tr>"}
 </table>`;
-}
-function tmplProducts(rows, cats, csrf){
-  const catsOpt = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
-  const rowsHtml = rows.map(p=>`
+    return;
+  }
+  if(name === "products"){
+    const csrf = get_csrf();
+    const catsOpt = (state.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+    const rowsHtml = (state.products || []).map(p => `
 <tr>
 <td>${p.id}</td>
-<td>
-<select form="f${p.id}" name="category_id" class="form-select form-select-sm">
-${catsOpt}
-</select>
-</td>
+<td><select form="f${p.id}" name="category_id" class="form-select form-select-sm">${catsOpt}</select></td>
 <td><input form="f${p.id}" name="name" value="${p.name}" class="form-control form-control-sm"></td>
 <td><input form="f${p.id}" name="price" type="number" value="${p.price}" class="form-control form-control-sm" style="width:90px"></td>
 <td><input form="f${p.id}" name="stock" type="number" value="${p.stock}" class="form-control form-control-sm" style="width:90px"></td>
@@ -298,25 +309,25 @@ ${catsOpt}
 </form>
 </td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>🛒 Товары</h4>
 <form onsubmit="return postForm(this)" class="row g-2 mb-4">
 <input type="hidden" name="_csrf" value="${csrf}">
-<div class="col-md-3"><select name="category_id" class="form-select">${catsOpt}</select></div>
+<div class="col-md-3"><select name="category_id" class="form-select">${catsOpt || "<option>-</option>"}</select></div>
 <div class="col-md-4"><input name="name" class="form-control" placeholder="Название" required></div>
 <div class="col-md-2"><input name="price" type="number" class="form-control" placeholder="Цена ⭐" required></div>
 <div class="col-md-2"><input name="stock" type="number" class="form-control" placeholder="Остаток" value="999"></div>
 <div class="col-md-1"><button class="btn btn-success w-100">+</button></div>
 </form>
-<div class="table-responsive">
-<table class="table table-sm align-middle">
+<div class="table-responsive"><table class="table table-sm align-middle">
 <tr><th>ID</th><th>Категория</th><th>Название</th><th>Цена ⭐</th><th>Остаток</th><th></th></tr>
-${rowsHtml}
-</table>
-</div>`;
-}
-function tmplCoupons(rows, csrf){
-  const rowsHtml = rows.map(c=>`
+${rowsHtml || "<tr><td class='text-secondary'>Нет товаров</td></tr>"}
+</table></div>`;
+    return;
+  }
+  if(name === "coupons"){
+    const csrf = get_csrf();
+    const rowsHtml = (state.coupons || []).map(c => `
 <tr>
 <td><code>${c.code}</code></td>
 <td>${c.amount}⭐</td>
@@ -329,7 +340,7 @@ function tmplCoupons(rows, csrf){
 </form>
 </td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>🎟 Купоны</h4>
 <form onsubmit="return postForm(this)" class="row g-2 mb-4">
 <input type="hidden" name="_csrf" value="${csrf}">
@@ -340,125 +351,181 @@ function tmplCoupons(rows, csrf){
 </form>
 <table class="table align-middle">
 <tr><th>Код</th><th>Сумма</th><th>Осталось</th><th>Активировано</th><th></th></tr>
-${rowsHtml}
+${rowsHtml || "<tr><td class='text-secondary'>Нет купонов</td></tr>"}
 </table>`;
-}
-function tmplTopups(rows){
-  const rowsHtml = rows.map(t=>`
+    return;
+  }
+  if(name === "topups"){
+    const rowsHtml = (state.topups || []).map(t => `
 <tr>
 <td>${t.id}</td>
-<td><a href="#/users/${t.user_id}">${t.name || t.user_id}</a></td>
+<td><a href="index.html#user=${t.user_id}">${t.name || t.user_id}</a></td>
 <td>+${t.amount}⭐</td>
 <td>${t.date}</td>
 </tr>`).join("");
-  return `
+    body.innerHTML = `
 <h4>💰 История пополнений</h4>
 <table class="table table-sm">
 <tr><th>#</th><th>Пользователь</th><th>Сумма</th><th>Дата</th></tr>
-${rowsHtml}
+${rowsHtml || "<tr><td class='text-secondary'>Нет пополнений</td></tr>"}
 </table>`;
-}
-function tmplBroadcast(total, result){
-  return `
+    return;
+  }
+  if(name === "broadcast"){
+    const csrf = get_csrf();
+    const resultHtml = state.broadcastResult ? `<div class="alert alert-success">${state.broadcastResult}</div>` : "";
+    body.innerHTML = `
 <h4>📢 Рассылка</h4>
-<p class="text-secondary">Получателей: ${total}</p>
-${result ? `<div class="alert alert-success">${result}</div>` : ""}
+<p class="text-secondary">Получателей: ${state.s?.users ?? 0}</p>
+${resultHtml}
 <form onsubmit="return postForm(this)">
-<input type="hidden" name="_csrf" value="${csrfToken()}">
+<input type="hidden" name="_csrf" value="${csrf}">
 <textarea name="text" rows="6" class="form-control mb-3" placeholder="Текст сообщения" required></textarea>
 <button class="btn btn-success">Отправить всем</button>
 </form>`;
-}
-function tmplSettings(items, csrf){
-  const body = items.map(([k,label,val])=>`
+    return;
+  }
+  if(name === "settings"){
+    const csrf = get_csrf();
+    const items = DEFAULTS.map(k => [k, LABELS[k], (state.settings||{})[k] || DEFAULTS_VALUES[k]]);
+    const bodyHtml = items.map(([k,label,val]) => `
 <div class="mb-3">
 <label class="form-label">${label}</label>
-${k==='greeting'||k==='service_text'
+${k==="greeting"||k==="service_text"
   ? `<textarea name="${k}" rows="3" class="form-control">${val}</textarea>`
   : `<input name="${k}" value="${val}" class="form-control">`}
 </div>`).join("");
-  return `
+    body.innerHTML = `
 <h4>⚙️ Настройки бота</h4>
 <form onsubmit="return postForm(this)" style="max-width:700px">
 <input type="hidden" name="_csrf" value="${csrf}">
-${body}
+${bodyHtml}
 <button class="btn btn-success">Сохранить</button>
 </form>`;
+    return;
+  }
+  body.innerHTML = `<div class="text-center text-secondary">Страница не найдена</div>`;
 }
 
-/* ---------- загрузка страниц ---------- */
-async function load(path){
+const STATUS = { new:"🆕 Новый", done:"✅ Выдан", refunded:"↩️ Возврат" };
+
+const DEFAULTS = [
+  "greeting","shop_name","created","chat_url","channel_url","rules_url","support","service_text","ref_bonus"
+];
+const LABELS = {
+  greeting:"Приветствие (/start), {name} — имя пользователя",
+  shop_name:"Название магазина",
+  created:"Дата создания",
+  chat_url:"Ссылка на чат",
+  channel_url:"Ссылка на канал",
+  rules_url:"Ссылка на правила",
+  support:"Бот поддержки",
+  service_text:"Текст «О сервисе»",
+  ref_bonus:"Бонус за реферала (⭐)"
+};
+const DEFAULTS_VALUES = {
+  greeting:"Привет {name}! Ты попал в магазин Grand SAMP Shop. Тут ты можешь приобрести донат, виртуальную валюту и многое многое другое 🔥",
+  shop_name:"Grand SAMP shop",
+  created:"2025-11-07",
+  chat_url:"https://t.me/your_chat",
+  channel_url:"https://t.me/your_channel",
+  rules_url:"https://t.me/your_channel/3",
+  support:"@grandsampsupport_bot",
+  service_text:"Бот создан на Python + aiogram 3.",
+  ref_bonus:"5"
+};
+
+function postForm(form){
+  const data = new FormData(form);
+  const csrf = form.querySelector('input[name="_csrf"]');
+  if(csrf) data.set("_csrf", csrf.value);
+  const url = form.action || (API_BASE + location.hash.replace("#",""));
+  fetch(url, { method:"POST", body:data })
+    .then(r=>r.json().catch(()=>({ flash:"Сохранено" })))
+    .then(j=>{
+      if(j && j.error){ flash(j.error, "danger"); }
+      else if(j && j.flash){ flash(j.flash, "info"); }
+      else { flash("Сохранено"); }
+      if(j && j.redirect){ redirectTo(j.redirect); return; }
+      loadState();
+    })
+    .catch(()=>flash("Ошибка сети", "danger"));
+  return false;
+}
+
+async function loadState(){
   try{
-    const r = await fetch(API_BASE + path, { headers:{ "X-Requested-With":"XMLHttpRequest" } });
+    const r = await fetch(API_BASE + "/");
     if(!r.ok){
-      if(r.status === 401){ show("login"); return; }
-      throw new Error("HTTP " + r.status);
+      const j = await r.json().catch(()=>({}));
+      if(j && j.redirect){ redirectTo(j.redirect); return; }
+      flash("Не удалось загрузить данные", "danger");
+      return;
     }
     const j = await r.json();
-    if(j && j.redirect){ location.href = j.redirect; return; }
-    const csrf = csrfToken();
-    document.getElementById("content").innerHTML = j.html;
-    if(j.csrf) document.cookie = "_csrf=" + j.csrf + "; path=/";
+    if(j.csrf) set_csrf(j.csrf);
+    state = j;
+    showSectionFromHash();
   }catch(e){
     flash("Ошибка загрузки: " + e.message, "danger");
-    show("login");
   }
 }
-function show(name){
-  const map = {
-    login: tmplLogin(csrfToken()),
-    index: tmplIndex,
-    users: tmplUsers,
-    user: tmplUser,
-    orders: tmplOrders,
-    categories: tmplCategories,
-    products: tmplProducts,
-    coupons: tmplCoupons,
-    topups: tmplTopups,
-    broadcast: tmplBroadcast,
-    settings: tmplSettings
-  };
-  const template = map[name];
-  if(!template){ flash("Страница не найдена", "danger"); return; }
-  document.getElementById("content").innerHTML = template();
+
+function showSectionFromHash(){
+  const h = location.hash.replace(/^#/,"") || "index";
+  const parts = h.split("/").filter(Boolean);
+  let name = parts[0] || "index";
+  let payload = null;
+
+  if(name === "user" && parts[1]){
+    payload = (state.users || []).find(u => String(u.id) === parts[1]) || null;
+    if(!payload){
+      flash("Пользователь не найден", "danger");
+      payload = { name:"Не найден", id:parts[1], balance:0, created:"-", };
+    }
+  }
+  if(name === "orders" && parts[1]){
+    state.orderStatus = parts[1];
+  }else{
+    state.orderStatus = null;
+  }
+  if(name === "users" && document.getElementById("userQ")){
+    state.userQuery = document.getElementById("userQ").value;
+  }
+  showSection(name, payload);
 }
 
-window.addEventListener("hashchange", ()=>{
-  const h = location.hash.replace(/^#\/?/,"") || "/";
-  const [name, id] = h.split("/").filter(Boolean).concat([""]);
-  if(name === "users" && id){
-    load("/users/" + id);
-  }else if(name === "orders" && id && id.endsWith("/done"^0)===(id.endsWith("/done")&&Number.isInteger(+id.split("/")[0]))==false){}
-  else if(name === "orders"){
-    load("/orders" + (location.search||""));
-  }else if(name === "login"){
-    show("login");
-  }else if(name === "categories"){
-    load("/categories");
-  }else if(name === "products"){
-    load("/products");
-  }else if(name === "coupons"){
-    load("/coupons");
-  }else if(name === "topups"){
-    load("/topups");
-  }else if(name === "broadcast"){
-    load("/broadcast");
-  }else if(name === "settings"){
-    load("/settings");
-  }else if(name === "users"){
-    load("/users");
-  }else{
-    load("/");
+function filterUsers(){
+  const q = (document.getElementById("userQ").value || "").trim().toLowerCase();
+  if(!q){
+    state.userQuery = "";
+    showSectionFromHash();
+    return;
   }
-});
+  state.users = (state.users || []).filter(u =>
+    String(u.id).includes(q) || (u.name||"").toLowerCase().includes(q)
+  );
+  showSectionFromHash();
+}
 
-/* ---------- начальная загрузка ---------- */
-(async()=>{
-  if(location.hash){
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  }else{
-    load("/");
-  }
+function editStateRaw(){
+  const body = document.getElementById("contentBody");
+  body.innerHTML = `
+<h4 class="mb-3">Данные (JSON)</h4>
+<pre class="mb-3" style="max-height:60vh;overflow:auto">${escapeHtml(JSON.stringify(state, null, 2))}</pre>
+<div class="text-secondary small">Для реального редактирования лучше использовать api.py.</div>`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+window.addEventListener("hashchange", showSectionFromHash);
+
+(async ()=>{
+  await loadState();
 })();
 </script>
 </body>
