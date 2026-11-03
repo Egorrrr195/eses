@@ -1,0 +1,35 @@
+{
+  "users": [],
+  "orders": [],
+  "topups": [],
+  "categories": [],
+  "products": [],
+  "used_coupons": [],
+  "coupons": [
+    { "code": "WELCOME", "amount": 10, "uses_left": 100, "used": 0 }
+  ],
+  "settings": {
+    "greeting": "Привет {name}! Ты попал в магазин Grand SAMP Shop. Тут ты можешь приобрести донат, виртуальную валюту и многое многое другое 🔥",
+    "shop_name": "Grand SAMP shop",
+    "created": "2025-11-07",
+    "chat_url": "https://t.me/your_chat",
+    "channel_url": "https://t.me/your_channel",
+    "rules_url": "https://t.me/your_channel/3",
+    "support": "@grandsampsupport_bot",
+    "service_text": "Бот создан на Python + aiogram 3.",
+    "ref_bonus": "5"
+  },
+  "s": {
+    "users": 0,
+    "orders": 0,
+    "new": 0,
+    "revenue": 0,
+    "topups": 0,
+    "balances": 0
+  },
+  "recent": [],
+  "csrf": "change-me-on-server",
+  "userQuery": "",
+  "orderStatus": "",
+  "broadcastResult": ""
+}
